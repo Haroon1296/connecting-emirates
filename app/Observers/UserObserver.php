@@ -3,12 +3,14 @@
 namespace App\Observers;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class UserObserver
 {
     public function creating(User $user)
     {
-        $user->verified_code = 123456; // mt_rand(1000,9000);
+        $user->password = Hash::make($user->password);
+        $user->verified_code = 123456; // mt_rand(10000,90000);
     }
 
     /**

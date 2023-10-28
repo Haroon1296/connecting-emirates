@@ -14,49 +14,43 @@ class UserResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        if($this->user_type == 'user'){
-            return $this->user($this);
-        } else if($this->user_type == 'hat') {
-            return $this->hat($this);
+        if($this->user_type == 'customer'){
+            return $this->customer($this);
+        } else if($this->user_type == 'business') {
+            return $this->business($this);
         } else {
-            return $this->guest($this);
+            return [];
         }
     }
-
-    private function guest($data)
+    private function customer($data)
     {
         return [
             'id'                    =>  $data->id,
-            'first_name'            =>  $data->first_name,
-            'last_name'             =>  $data->last_name,
-            'user_type'             =>  $data->user_type,
-            'is_profile_complete'   =>  $data->is_profile_complete,
-            'is_verified'           =>  $data->is_verified,
-            'is_blocked'            =>  $data->is_blocked,
-            'is_social'             =>  $data->is_social
-        ];
-    }
-
-    private function user($data)
-    {
-        return [
-            'id'                    =>  $data->id,
-            'first_name'            =>  $data->first_name,
-            'last_name'             =>  $data->last_name,
+            'full_name'             =>  $data->full_name,
             'email'                 =>  $data->email,
             'user_type'             =>  $data->user_type,
             'profile_image'         =>  $data->profile_image,
             'phone_number'          =>  $data->phone_number,
-            'zip_code'              =>  $data->zip_code,
+            'location'              =>  $data->location,
+            'latitude'              =>  $data->latitude,
+            'longitude'             =>  $data->longitude,
+            'country_code'          =>  $data->country_code,
+            'about'                 =>  $data->about,
+            'date_of_birth'         =>  $data->date_of_birth,
+            'gender'                =>  $data->gender,
+            'emirates'              =>  $data->emirates,
+            'nationality'           =>  $data->nationality,
+            'customer_id'           =>  $data->customer_id,
+            'push_notification'     =>  $data->push_notification,
             'is_profile_complete'   =>  $data->is_profile_complete,
             'is_verified'           =>  $data->is_verified,
             'is_blocked'            =>  $data->is_blocked,
             'is_social'             =>  $data->is_social,
-            'social_media_links'    =>  $data->social_media_links
+            'is_deleted'            =>  $data->is_deleted
         ];
     }
 
-    private function hat($data)
+    private function business($data)
     {
         return [
             'id'                    =>  $data->id,
@@ -73,7 +67,6 @@ class UserResource extends JsonResource
             'is_verified'           =>  $data->is_verified,
             'is_blocked'            =>  $data->is_blocked,
             'is_social'             =>  $data->is_social,
-            'social_media_links'    =>  $data->social_media_links
         ];
     }
 }

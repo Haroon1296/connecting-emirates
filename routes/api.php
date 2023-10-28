@@ -30,9 +30,11 @@ Route::controller(AuthController::class)->group( function(){
     Route::get('content', 'content');
 
     Route::group(['middleware'=>'auth:sanctum'], function(){
-        Route::post('logout', 'logout');   
-        Route::post('update-password', 'updatePassword');
-        Route::post('complete-profile', 'completeProfile');
+        Route::prefix('auth')->group(function () {
+            Route::post('logout', 'logout');   
+            Route::post('update-password', 'updatePassword');
+            Route::post('complete-profile', 'completeProfile');
+        });
     });
 });
 

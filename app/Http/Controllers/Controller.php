@@ -14,18 +14,18 @@ class Controller extends BaseController
 
     public function __construct()
     {
-        $this->socket_url = $_SERVER['HTTP_HOST'] == 'localhost' ? 'http://localhost:3009' : 'http://server1.appsstaging.com:3009';
+        $this->socket_url = $_SERVER['HTTP_HOST'] == 'localhost' ? 'http://localhost:3009' : '';
         
-        $this->stripe_public_key  = 'pk_test_51H0UoCJELxddsoRYqANwUqQLd24vQYATeVTsN7Sm1xnAD68ARNm6bK0vsdCSqisOhSMNCATShUvDmXdzeyW0Cezz00RbGzoMup';
-        $this->stripe_secret_key  = 'sk_test_51H0UoCJELxddsoRYdF40WwR8HUvA8U5wgUNqQwDCweZT4TnbAuIGINVtVWAItPMcSoMOighLxdZR1Jjl8vdUwldb00EMPAVgIE';
+        $this->stripe_public_key  = '';
+        $this->stripe_secret_key  = '';
 
-        $this->options = [
-            'context' => [
-                'ssl' => [
-                    'verify_peer'      => false,
-                    'verify_peer_name' => false
-                ]
-            ]
-        ];
+        // $this->options = [
+        //     'context' => [
+        //         'ssl' => [
+        //             'verify_peer'      => false,
+        //             'verify_peer_name' => false
+        //         ]
+        //     ]
+        // ];
     }
 }

@@ -5,15 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Traits\ApiResponser;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
-use App\Models\{
-    User,
-    SocialMediaLink
-};
+use App\Models\User;
 use App\Notifications\Otp;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\Rules\Password;
 
 class AuthController extends Controller
 {
@@ -23,40 +22,49 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $this->validate($request, [
-            'user_type'   =>  'required|in:user,hat',
-            'email'       =>  'required|email|exists:users,email',
-            'device_type' =>  'in:ios,android,web'
+            'email'       =>  'required|email',
+            'password'    =>  ['required', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
+            'device_type' =>  'in:ios,android,web',
+            'user_type'   =>  'required|in:customer,business'
         ]);
 
         $user = User::where('email', $request->email)->first(); 
-        
-        if($user->user_type == $request->user_type){
-            if($user->is_verified == 1){
-                if($user->is_blocked == 0){
-                    $user->verified_code = 123456; // mt_rand(1000,9000);
-                    $user->save();
-                    try{
-                        $user->subject =  'Sign in Verification';
-                        $user->message =  'Please use the verification code below to sign in. ' . '<br> <br> <b>' . $user->verified_code . '</b>' ;
-                        
-                        Notification::send($user, new Otp($user));
-                    }catch (\Exception $exception){
-                    }
-        
-                    $data = [
-                        'user_id' => $user->id
-                    ];
-                    return $this->successDataResponse('Please enter verification.', $data, 200);
 
+        if(!empty($user)){
+            if($user->is_deleted == '1'){
+                return $this->errorDataResponse('Your account has been deleted as per your request.', ['user_id' => $user->id, 'is_deleted' => $user->is_deleted],400);
+            } else {
+                if($user->user_type == $request->user_type){
+                    if (Hash::check($request->password, $user->password)){
+                        if($user->is_verified == 1){
+                            if($user->is_blocked == 0){
+                                Auth::attempt($request->only('email', 'password'));
+                
+                                $token = $user->createToken('AuthToken');
+                                User::whereId($user->id)->update(['device_type' => $request->device_type, 'device_token' => $request->device_token]);  
+                                $userUpdate = User::find($user->id);
+            
+                                $userResource = new UserResource($userUpdate);
+                                if($userUpdate->user_type == 'customer'){
+                                    return $this->loginResponse('Customer login successfully.', $token->plainTextToken, $userResource);
+                                } else {
+                                    return $this->loginResponse('Business login successfully.', $token->plainTextToken, $userResource);
+                                }
+                            } else {
+                                return $this->errorResponse('Your account is blocked.', 400);
+                            }
+                        }  else {            
+                            return $this->successDataResponse('Your account is not verfied.', ['user_id' => $user->id, 'is_verified' => $user->is_verified], 200);
+                        }
+                    } else{
+                        return $this->errorResponse('Password is incorrect.', 400);
+                    }
                 } else{
-                    return $this->errorResponse('Your account is blocked.', 400);
+                    return $this->errorResponse('Invalid credentials.', 400);
                 }
-            } else{
-                $userResource = new UserResource($user);
-                return $this->successDataResponse('Your account is not verfied.', $userResource, 200);
             }
         } else{
-            return $this->errorResponse('Invalid credentials.', 400);
+            return $this->errorResponse('Email not found.', 400);
         }
     }
 
@@ -64,147 +72,121 @@ class AuthController extends Controller
     public function socialLogin(Request $request)
     {
         $this->validate($request, [
-            'social_type'       =>  'required|in:google,apple',
+            'social_type'       =>  'required|in:google,apple,phone',
             'social_token'      =>  'required',
-            'device_type'       =>  'in:ios,android,web',
-            'user_type'         =>  'required|in:user,hat'
+            'user_type'         =>  'required|in:customer,business',
+            'device_type'       =>  'in:ios,android,web'
         ]);
 
-        try{
-            DB::beginTransaction();
-            $user = User::where('social_token', $request->social_token)->first();
+        $user = User::where(['social_token' => $request->social_token, 'user_type' => $request->user_type])->first();
 
-            if(!empty($user)){
-                if($user->user_type == $request->user_type){
-                    $user->device_type = $request->device_type;
-                    $user->device_token = $request->device_token;
-                    $user->save();
-                } else{
-                    return $this->errorResponse('Invalid credentials.', 400);
-                }
-            } else{
-                $user = new User;
-                $user->social_type = $request->social_type;
-                $user->social_token = $request->social_token;
-                $user->user_type = $request->user_type;
-                $user->is_verified = '1';
-                $user->is_social = '1';
-                $user->is_profile_complete = '0';
-                $user->device_type = $request->device_type;
-                $user->device_token = $request->device_token;
-                $user->save();
+        if(!empty($user)){
 
-                $stripe = new \Stripe\StripeClient($this->stripe_secret_key);
-                $customers_create = $stripe->customers->create([
-                    'name'  => $user->id
-                ]);
-                User::whereId($user->id)->update(['customer_id' => $customers_create->id]);
-            }
-
-            $token = $user->createToken('AuthToken');
-            $userResource = new UserResource($user);
-            
-            DB::commit();
-            return $this->loginResponse('Social login successfully.', $token->plainTextToken, $userResource);
-        } catch (\Exception $exception){
-            DB::rollBack();
-            return $this->errorResponse($exception->getMessage(), 400);
+            $user->device_type = $request->device_type;
+            $user->device_token = $request->device_token;
+            $user->save();
+        }else{
+            $user = new User;
+            $user->user_type = $request->user_type;
+            $user->social_type = $request->social_type;
+            $user->social_token = $request->social_token;
+            $user->is_profile_complete = '0';
+            $user->is_verified = '1';
+            $user->is_social = '1';
+            $user->device_type = $request->device_type;
+            $user->device_token = $request->device_token;
+            $user->save();
         }
+
+        $token = $user->createToken('AuthToken');
+        $userResource = new UserResource($user);
+          
+        return $this->loginResponse('Social login successfully.', $token->plainTextToken, $userResource);
     }
 
     /** User register */
     public function register(Request $request)
     {
         $this->validate($request, [
-            'user_type'       =>      'required|in:user,hat,guest',
-            'first_name'      =>      'required',
-            'last_name'       =>      'required',
-            'email'           =>      $request->user_type == 'guest' ? 'nullable' : 'required|unique:users|email|max:255',
-            'device_type'     =>      $request->user_type == 'guest' ? 'required|in:ios,android,web' : 'nullable',
-            'device_token'    =>      $request->user_type == 'guest' ? 'required' : 'nullable'
+            'user_type'   =>  'required|in:customer,business'
         ]);
 
-        if($request->user_type == 'guest'){
-            $userExists = User::where(['device_type' => $request->device_type, 'device_token' => $request->device_token])->first();
-
-            if(!empty($userExists)){
-                if(empty($request->email)){
-                    $token = $userExists->createToken('AuthToken');
-    
-                    $userResource = new UserResource($userExists); 
-                    return $this->loginResponse('Guest login successfully.', $token->plainTextToken, $userResource);
-                } else if(!empty($request->email)){
-
-                    $emailExists = User::where(['email' => $request->email])->exists();
-
-                    if($emailExists){
-                        return $this->errorResponse('The email has already been taken.', 400);
-                    } else {
-                        $userExists->email = $request->email;
-                        $userExists->user_type = 'user';
-                        $userExists->device_type = null;
-                        $userExists->device_token = null;
-                        $userExists->save();
-    
-                        if($userExists){
-                            try{
-                                $userExists->subject =  'Account Verification';
-                                $userExists->message =  'Please use the verification code below to sign up. ' . '<br> <br> <b>' . $userExists->verified_code . '</b>' ;
-                                
-                                Notification::send($userExists, new Otp($userExists));
-                            }catch (\Exception $exception){
-                            }
-                
-                            $data = [
-                                'user_id' => $userExists->id
-                            ];
-                            return $this->successDataResponse('Sign up successfully.', $data, 200);
-                        } else {
-                            return $this->errorResponse('Something went wrong.', 400);
-                        }
-                    }
-                }
-            } else {
-                    
-                $created =  User::create($request->only('user_type', 'first_name', 'last_name', 'device_type', 'device_token'));
-
-                $stripe = new \Stripe\StripeClient($this->stripe_secret_key);
-                $customers_create = $stripe->customers->create([
-                    'name'  => $created->id
-                ]);
-                User::whereId($created->id)->update(['customer_id' => $customers_create->id]);
-
-                $token = $created->createToken('AuthToken');
-
-                $userResource = new UserResource($created); 
-                return $this->loginResponse('Guest login successfully.', $token->plainTextToken, $userResource);
-            }
+        if($request->user_type == 'customer'){
+            return $this->customerRegister($request);
         } else {
-            $created =  User::create($request->only('user_type', 'first_name', 'last_name', 'email'));
-            
-            $stripe = new \Stripe\StripeClient($this->stripe_secret_key);
-            $customers_create = $stripe->customers->create([
-                'name'  => $created->id
-            ]);
-            User::whereId($created->id)->update(['customer_id' => $customers_create->id]);
+            return $this->businessRegister($request);
+        }
+    }
 
-            if($created){
-    
-                try{
-                    $created->subject =  'Account Verification';
-                    $created->message =  'Please use the verification code below to sign up. ' . '<br> <br> <b>' . $created->verified_code . '</b>' ;
-                    
-                    Notification::send($created, new Otp($created));
-                }catch (\Exception $exception){
-                }
-    
-                $data = [
-                    'user_id' => $created->id
-                ];
-                return $this->successDataResponse(ucfirst($request->user_type) . ' registered successfully.', $data, 200);
-            } else {
-                return $this->errorResponse('Something went wrong.', 400);
+    /** User register */
+    private function customerRegister($request)
+    {
+        $this->validate($request, [
+            'full_name'         =>  'required',
+            'restaurant_name'   =>  'required',
+            'phone_number'      =>  'required',
+            'email'             =>  'required|unique:users|email|max:255',
+            'password'          =>  ['required', Password::min(8)->letters()->mixedCase()->numbers()->symbols()]
+        ]);
+
+        $created =  User::create($request->only('full_name', 'restaurant_name', 'phone_number', 'email', 'password', 'user_type'));
+
+        if($created){
+
+            try{
+                $created->subject =  'Account Verification';
+                $created->message =  'Please use the verification code below to sign up. ' . '<b>' . $created->verified_code . '</b>' ;
+                
+                Notification::send($created, new Otp($created));
+            }catch (\Exception $exception){
             }
+             
+            $data = [
+                'user_id' => $created->id
+            ];
+            return $this->successDataResponse('Customer register successfully.', $data, 200);
+        }
+        else{
+            return $this->errorResponse('Something went wrong.', 400);
+        }
+    }
+
+    /** Business register */
+    private function businessRegister($request)
+    {
+        $this->validate($request, [
+            'full_name'             =>  'required',
+            'email'                 =>  'required|unique:users|email|max:255',
+            'business_name'         =>  'required',
+            'ein_number'            =>  'required',
+            'phone_number'          =>  'required',
+            'password'              =>  'required',
+            'profile_image'         =>  'required|mimes:jpeg,png,jpg',
+        ]);
+
+        $profile_image = $request->profile_image->store('public/profile_image');
+        $path = Storage::url($profile_image);
+        $profile_image = $path;
+
+        $created =  User::create($request->only('full_name', 'business_name', 'ein_number', 'phone_number', 'email', 'password', 'user_type') + ['profile_image' => $profile_image]);
+
+        if($created){
+
+            try{
+                $created->subject =  'Business Account Verification';
+                $created->message =  'Please use the verification code below to sign up. ' . '<br> <br> <b>' . $created->verified_code . '</b>' ;
+                
+                Notification::send($created, new Otp($created));
+            }catch (\Exception $exception){
+            }
+            
+            $data = [
+                'user_id' => $created->id
+            ];
+            return $this->successDataResponse('Business register successfully.', $data, 200);
+        }
+        else{
+            return $this->errorResponse('Something went wrong.', 400);
         }
     }
 
@@ -216,10 +198,11 @@ class AuthController extends Controller
         ]);
 
         $user = User::where('email', $request->email)->first();
-        $user->verified_code = 123456; // mt_rand(1000,9000);
+        $user->verified_code = $user->user_type == 'user' ? 1234 : 123456; // mt_rand(1000,9000);
         $user->is_forgot = '1';
 
         if($user->save()){
+
             try{
                 $user->subject =  'Forgot Your Password';
                 $user->message =  'We received a request to reset the password for your account. Please use the verification code below to change password.' . '<br> <br> <b>' . $user->verified_code . '</b>' ;
@@ -227,7 +210,7 @@ class AuthController extends Controller
                 Notification::send($user, new Otp($user));
             }catch (\Exception $exception){
             }
-            
+
             $data = [
                 'user_id' => $user->id
             ];
@@ -242,26 +225,35 @@ class AuthController extends Controller
     public function verification(Request $request)
     {
         $this->validate($request, [
-            'user_id'       =>  'required|exists:users,id',
-            'verified_code' =>  'required',
+            'user_id'       => 'required|exists:users,id',
+            'verified_code' => 'required',
+            'type'          => 'required|in:forgot,account_verify',
             'device_type'   =>  'in:ios,android,web'
-        ]);
+        ]);   
 
         $userExists = User::whereId($request->user_id)->where('verified_code', $request->verified_code)->exists();
 
         if($userExists){
-            $updateUser = User::whereId($request->user_id)->where('verified_code', $request->verified_code)->update(['device_type' => $request->device_type, 'device_token' => $request->device_token, 'is_verified' => '1', 'verified_code' => null]);
+            if($request->type == 'forgot'){
+                $updateUser = User::whereId($request->user_id)->where('verified_code', $request->verified_code)->update(['device_type' => $request->device_type, 'device_token' => $request->device_token, 'is_forgot' => '0', 'verified_code' => null]);
+            }else{
+                $updateUser = User::whereId($request->user_id)->where('verified_code', $request->verified_code)->update(['device_type' => $request->device_type, 'device_token' => $request->device_token, 'is_verified' => '1', 'verified_code' => null]);
+            }
+
             if($updateUser){
                 $user = User::find($request->user_id);
                 $token = $user->createToken('AuthToken');
 
-                $userResource = new UserResource($user); 
+                $userResource = new UserResource($user);
+ 
                 return $this->loginResponse('Your verification completed successfully.', $token->plainTextToken, $userResource);
-            } else {
+            }
+            else{
                 return $this->errorResponse('Something went wrong.', 400);
             }
-        } else {
-            return $this->errorResponse('Invalid details.', 400);
+        }
+        else{
+            return $this->errorResponse('Invalid OTP.', 400);
         }
     }
 
@@ -273,13 +265,53 @@ class AuthController extends Controller
         ]);
 
         $user = User::whereId($request->user_id)->first();
-        $user->verified_code = 123456; // mt_rand(1000,9000);
+        $user->verified_code = 123456;//mt_rand(10000,90000);
 
         if($user->save()){
+
+            try{
+                $user->subject =  'Resent Otp';
+                $user->message =  'We have received a request to resend the OTP for verification. Please use the verification code below.' . '<br> <br> <b>' . $user->verified_code . '</b>' ;
+
+                Notification::send($user, new Otp($user));
+            }catch (\Exception $exception){
+            }
+
             return $this->successResponse('Resend code successfully send on your given email.', 200);
-        } else {
+        }
+        else{
             return $this->errorResponse('Something went wrong.', 400);
         }
+    }
+
+    /** Update password */
+    public function updatePassword(Request $request)
+    {
+        $this->validate($request, [
+            'new_password' => ['required', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
+        ]);
+
+        if(empty($request->old_password)){
+            $updateUser = User::whereId(auth()->user()->id)->update(['password' => Hash::make($request->new_password), 'is_forgot' => '0']);
+            if($updateUser){
+                return $this->successResponse('New Password set successfully.', 200);
+            } else {
+                return $this->errorResponse('Something went wrong.', 400);
+            }
+        }
+        else{
+            $user = User::whereId(auth()->user()->id)->first();  
+            if (Hash::check($request->old_password , $user->password)){
+                $updateUser = User::whereId(auth()->user()->id)->update(['password' => Hash::make($request->new_password)]);
+                if($updateUser){
+                    return $this->successResponse('Password update successfully.', 200);
+                } else {
+                    return $this->errorResponse('Something went wrong.', 400);
+                }
+            } else {
+                return $this->errorResponse('Old password is incorrect.', 400);
+            }
+        }        
     }
 
     /** Complete profile */
@@ -287,12 +319,14 @@ class AuthController extends Controller
     {
         $this->validate($request, [
             'profile_image'             =>    'mimes:jpeg,png,jpg',
-            'push_notification'         =>    'in:0,1'
+            'date_of_birth'             =>    'date_format:Y-m-d',
+            'push_notification'         =>    'in:0,1',
+            'gender'                    =>    'in:male,female,other'
         ]);
 
         $authUser = auth()->user();
         $authId = $authUser->id;
-        $completeProfile = $request->only('first_name', 'last_name', 'profile_image', 'phone_number', 'specialty', 'bio', 'zip_code');
+        $completeProfile = $request->all();
 
         if($request->hasFile('profile_image')){
             $profile_image = $request->profile_image->store('public/profile_image');
@@ -300,29 +334,20 @@ class AuthController extends Controller
             $completeProfile['profile_image'] = $path;
         }
 
-        if(count($request->social_media_title) > 0){ 
-            SocialMediaLink::where('user_id', $authId)->delete();
-            foreach($request->social_media_title as $key => $title){
-                $attachmentData['user_id'] = $authId;
-                $attachmentData['title'] = $title;
-                $attachmentData['link'] = $request->social_media_link[$key];
-                SocialMediaLink::create($attachmentData);
-            }
-        }
-
         $completeProfile['is_profile_complete'] = '1';
         $update_user = User::whereId($authId)->update($completeProfile);
         
         if($update_user){
             $user = User::find($authId);
-            $userResource = new UserResource($user);
 
+            $userResource = new UserResource($user);
+            
             if($authUser->is_profile_complete == '0'){
                 return $this->successDataResponse('Profile completed successfully.', $userResource);
             } else{
                 return $this->successDataResponse('Profile updated successfully.', $userResource);
             }
-        } else {
+        }else{
             return $this->errorResponse('Something went wrong.', 400);
         }
     }
@@ -337,20 +362,32 @@ class AuthController extends Controller
         return $this->successDataResponse('Content found.', ['url' => url('content', $request->type)], 200);
     }
 
+    /** Faq */
+    public function faq()
+    {
+        $faqs = Faq::latest()->select('question', 'answer')->get();
+
+        if(count($faqs) > 0){
+            return $this->successDataResponse('Faq found.', $faqs, 200);
+        } else{
+            return $this->errorResponse('Faq not found.', 400);
+        }
+    }
+
     /** Logout */
     public function logout(Request $request)
     {
-        $deleteTokens = $request->user()->currentAccessToken()->delete();
+        $deleteTokens = $request->user()->currentAccessToken()->delete(); // $request->user()->tokens()->delete();
         
         if($deleteTokens){
             $update_user = User::whereId(auth()->user()->id)->update(['device_type' => null, 'device_token' => null]);
             if($update_user){
-                return $this->successResponse('User logout successfully.', 200);
+                return $this->successResponse('Logout successfully.', 200);
             }else{
                 return $this->errorResponse('Something went wrong.', 400);
             }
         }else{
-            return $this->errorResponse('Something went wrong11.', 400);
+            return $this->errorResponse('Something went wrong.', 400);
         }                
     }
 }

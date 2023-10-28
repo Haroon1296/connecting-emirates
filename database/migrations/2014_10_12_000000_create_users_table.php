@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('full_name')->nullable();
             $table->string('email')->unique()->nullable();
+            $table->string('password')->nullable();
             $table->enum('user_type', ['admin','business','customer']);
             $table->timestamp('email_verified_at')->nullable();
             $table->string('profile_image')->nullable();
@@ -30,7 +31,6 @@ return new class extends Migration
             $table->string('operting_emirates')->nullable();
             $table->integer('category_id')->nullable();
             $table->string('venue_seating')->nullable();
-            $table->string('dietary')->nullable();
             $table->string('dietary')->nullable();
             $table->string('menu_image')->nullable();
             $table->string('license_image')->nullable();
@@ -59,10 +59,11 @@ return new class extends Migration
             $table->longText('social_token')->nullable();
             $table->enum('push_notification', ['0','1'])->default('1');
             $table->enum('is_verified', ['0','1'])->default('0');
+            $table->enum('is_forgot', ['0','1'])->default('0');
             $table->enum('is_social', ['0','1'])->default('0');
             $table->integer('verified_code')->nullable();
             $table->enum('is_blocked', ['0','1'])->default('0');
-
+            $table->enum('is_deleted', ['0','1'])->default('0');
             $table->timestamps();
         });
     }
