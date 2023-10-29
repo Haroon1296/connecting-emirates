@@ -29,7 +29,7 @@ return new class extends Migration
 
             $table->enum('registering_as', ['restaurant', 'adventure', 'event'])->nullable();
             $table->string('operting_emirates')->nullable();
-            $table->integer('category_id')->nullable();
+            $table->string('category')->nullable();
             $table->string('venue_seating')->nullable();
             $table->string('dietary')->nullable();
             $table->string('menu_image')->nullable();

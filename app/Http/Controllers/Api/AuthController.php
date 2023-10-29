@@ -108,20 +108,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $this->validate($request, [
-            'user_type'   =>  'required|in:customer,business'
-        ]);
-
-        if($request->user_type == 'customer'){
-            return $this->customerRegister($request);
-        } else {
-            return $this->businessRegister($request);
-        }
-    }
-
-    /** User register */
-    private function customerRegister($request)
-    {
-        $this->validate($request, [
+            'user_type'         =>  'required|in:customer,business',
             'full_name'         =>  'required',
             'restaurant_name'   =>  'required',
             'phone_number'      =>  'required',
@@ -144,46 +131,7 @@ class AuthController extends Controller
             $data = [
                 'user_id' => $created->id
             ];
-            return $this->successDataResponse('Customer register successfully.', $data, 200);
-        }
-        else{
-            return $this->errorResponse('Something went wrong.', 400);
-        }
-    }
-
-    /** Business register */
-    private function businessRegister($request)
-    {
-        $this->validate($request, [
-            'full_name'             =>  'required',
-            'email'                 =>  'required|unique:users|email|max:255',
-            'business_name'         =>  'required',
-            'ein_number'            =>  'required',
-            'phone_number'          =>  'required',
-            'password'              =>  'required',
-            'profile_image'         =>  'required|mimes:jpeg,png,jpg',
-        ]);
-
-        $profile_image = $request->profile_image->store('public/profile_image');
-        $path = Storage::url($profile_image);
-        $profile_image = $path;
-
-        $created =  User::create($request->only('full_name', 'business_name', 'ein_number', 'phone_number', 'email', 'password', 'user_type') + ['profile_image' => $profile_image]);
-
-        if($created){
-
-            try{
-                $created->subject =  'Business Account Verification';
-                $created->message =  'Please use the verification code below to sign up. ' . '<br> <br> <b>' . $created->verified_code . '</b>' ;
-                
-                Notification::send($created, new Otp($created));
-            }catch (\Exception $exception){
-            }
-            
-            $data = [
-                'user_id' => $created->id
-            ];
-            return $this->successDataResponse('Business register successfully.', $data, 200);
+            return $this->successDataResponse(ucfirst($request->user_type) . ' register successfully.', $data, 200);
         }
         else{
             return $this->errorResponse('Something went wrong.', 400);
@@ -321,7 +269,11 @@ class AuthController extends Controller
             'profile_image'             =>    'mimes:jpeg,png,jpg',
             'date_of_birth'             =>    'date_format:Y-m-d',
             'push_notification'         =>    'in:0,1',
-            'gender'                    =>    'in:male,female,other'
+            'gender'                    =>    'in:male,female,other',
+            'registering_as'            =>    'in:restaurant,adventure,event',
+            'menu_image'                =>    'mimes:jpeg,png,jpg',
+            'license_image'             =>    'mimes:jpeg,png,jpg',
+            'venue_type_id'             =>    'mimes:jpeg,png,jpg'
         ]);
 
         $authUser = auth()->user();
@@ -330,8 +282,20 @@ class AuthController extends Controller
 
         if($request->hasFile('profile_image')){
             $profile_image = $request->profile_image->store('public/profile_image');
-            $path = Storage::url($profile_image);
-            $completeProfile['profile_image'] = $path;
+            $path_profile_image = Storage::url($profile_image);
+            $completeProfile['profile_image'] = $path_profile_image;
+        }
+
+        if($request->hasFile('menu_image')){
+            $menu_image = $request->menu_image->store('public/business');
+            $path_menu_image = Storage::url($menu_image);
+            $completeProfile['menu_image'] = $path_menu_image;
+        }
+
+        if($request->hasFile('license_image')){
+            $license_image = $request->license_image->store('public/business');
+            $path_license_image = Storage::url($license_image);
+            $completeProfile['license_image'] = $path_license_image;
         }
 
         $completeProfile['is_profile_complete'] = '1';

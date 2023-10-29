@@ -54,19 +54,30 @@ class UserResource extends JsonResource
     {
         return [
             'id'                    =>  $data->id,
-            'first_name'            =>  $data->first_name,
-            'last_name'             =>  $data->last_name,
+            'full_name'             =>  $data->full_name,
             'email'                 =>  $data->email,
             'user_type'             =>  $data->user_type,
             'profile_image'         =>  $data->profile_image,
+            'menu_image'            =>  $data->menu_image,
+            'license_image'         =>  $data->license_image,
             'phone_number'          =>  $data->phone_number,
-            'bio'                   =>  $data->bio,
-            'specialty'             =>  $data->specialty,
-            'zip_code'              =>  $data->zip_code,
+            'location'              =>  $data->location,
+            'latitude'              =>  $data->latitude,
+            'longitude'             =>  $data->longitude,
+            'country_code'          =>  $data->country_code,
+            'about'                 =>  $data->about,
+            'registering_as'        =>  $data->registering_as,
+            'operting_emirates'     =>  $data->operting_emirates,
+            'category'              =>  $data->category,
+            'venue_seating'         =>  $data->venue_seating,
+            'dietary'               =>  $data->dietary,
+            'customer_id'           =>  $data->customer_id,
+            'push_notification'     =>  $data->push_notification,
             'is_profile_complete'   =>  $data->is_profile_complete,
             'is_verified'           =>  $data->is_verified,
             'is_blocked'            =>  $data->is_blocked,
             'is_social'             =>  $data->is_social,
+            'is_deleted'            =>  $data->is_deleted
         ];
     }
 }

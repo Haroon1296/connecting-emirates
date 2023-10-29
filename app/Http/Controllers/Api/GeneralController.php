@@ -4,12 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\Event\ListResource;
-use App\Models\Event;
-use App\Models\Favourite;
 use App\Models\Notification;
 use App\Models\StripeCard;
-use App\Models\User;
+use App\Models\VenueType;
 use App\Traits\ApiResponser;
 use Stripe\StripeClient;
 
@@ -17,75 +14,23 @@ class GeneralController extends Controller
 {
     use ApiResponser;
 
-    /** List favourite */
-    public function favouriteList(Request $request)
+    /** Venue type list */
+    public function venueTypeList()
     {
-        $this->validate($request, [
-            'type'       =>       'required|in:hat,song,event'
-        ]);
+        try {
+            $venueTypes = VenueType::active()->orderBy('title')->select('id', 'title')->get();
 
-        $type = $request->type;
-        $favourite = Favourite::where('type', $type)->get()->pluck('record_id');
-
-        switch ($type) {
-            case "hat":
-                $data = User::whereIn('id', $favourite)->select('id', 'first_name', 'last_name', 'profile_image')->get();
-                break;
-            case "event":
-                $events = Event::with('user:id,first_name,last_name,profile_image', 'event_type:id,title', 'comments.user')->whereIn('id', $favourite)->get();
-                $data = ListResource::collection($events);
-                break;        
-            default:   
-                $data = [];    
-        }
-
-        if(count($data) > 0){
-            return $this->successDataResponse(ucfirst($type) . ' favourite list found successfully.', $data, 200);
-        } else {
-            return $this->errorResponse('No favourite list found.', 400);
-        }
-    }
-
-    /** Add to favourite */
-    public function addToFavourite(Request $request)
-    {
-        $this->validate($request, [
-            'type'            =>  'required|in:hat,song,event',
-            'record_id'       =>  'required|numeric'
-        ]);
-
-        try{
-            $type = $request->type;
-            $record_id = $request->record_id;
-
-            $favouriteExists = Favourite::where(['record_id' => $record_id, 'type' => $type])->first();
-
-            if(!empty($favouriteExists)){
-                $favouriteExists->delete();
-                return $this->successResponse(ucfirst($type) . ' removed from favourite successfully.');
-            } else {
-                switch ($type) {
-                    case "hat":
-                        $hatUser = User::whereId($record_id)->where('user_type', $type)->exists();
-                        if(!$hatUser){
-                            return $this->errorResponse('Hat not found.', 400);
-                        }
-                        break;
-                    case "event":
-                        $event = Event::whereId($record_id)->exists();
-                        if(!$event){
-                            return $this->errorResponse('Event not found.', 400);
-                        }
-                        break;                       
-                }
-                $data = $request->only('record_id', 'type')  + ['user_id' => auth()->id()];
-                Favourite::create($data);
-                return $this->successResponse(ucfirst($type) . ' added to favourite successfully.');
+            if(count($venueTypes) > 0){
+                return $this->successDataResponse('Venue type list.', $venueTypes);
+            } else{
+                return $this->errorResponse('Venue type list not found.', 400);
             }
+
         } catch (\Exception $exception){
             return $this->errorResponse($exception->getMessage(), 400);
         }
     }
+
 
     /** List notification */
     public function notificationList(Request $request)

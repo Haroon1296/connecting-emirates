@@ -43,11 +43,7 @@ Route::group(['middleware'=>'auth:sanctum'], function(){
     Route::controller(GeneralController::class)->group( function(){
         Route::prefix('general')->group(function () {
             Route::get('notifications-list', 'notificationList');
-
-            Route::prefix('favourite')->group(function () {
-                Route::get('list', 'favouriteList');
-                Route::post('create-remove', 'addToFavourite');
-            });
+            Route::get('venue-type-list', 'venueTypeList');
 
             Route::prefix('card')->group(function () {
                 Route::get('list', 'listCard');
