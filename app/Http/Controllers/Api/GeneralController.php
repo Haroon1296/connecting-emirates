@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use App\Models\Attachment;
 use App\Models\Notification;
 use App\Models\StripeCard;
 use App\Models\VenueType;
 use App\Traits\ApiResponser;
+use Illuminate\Support\Facades\DB;
 use Stripe\StripeClient;
 
 class GeneralController extends Controller
@@ -21,9 +23,9 @@ class GeneralController extends Controller
             $venueTypes = VenueType::active()->orderBy('title')->select('id', 'title')->get();
 
             if(count($venueTypes) > 0){
-                return $this->successDataResponse('Venue type list.', $venueTypes);
+                return $this->successDataResponse('Venue types list found.', $venueTypes);
             } else{
-                return $this->errorResponse('Venue type list not found.', 400);
+                return $this->errorResponse('Venue types list not found.', 400);
             }
 
         } catch (\Exception $exception){
@@ -31,6 +33,27 @@ class GeneralController extends Controller
         }
     }
 
+    /** Delete attachment */
+    public static function deleteAttachment($deleted_ids)
+    {
+        try{
+            DB::beginTransaction();
+            $attachments = Attachment::whereIn('id', $deleted_ids)->get();
+
+            if(count($attachments) > 0){
+                foreach($attachments as $attachment){
+                    unlink(public_path($attachment->attachment));
+                    $attachment->delete();
+                }
+            }
+
+            DB::commit();
+            return 1;
+        } catch (\Exception $exception){
+            DB::rollBack();
+            return $exception->getMessage();
+        }
+    }
 
     /** List notification */
     public function notificationList(Request $request)

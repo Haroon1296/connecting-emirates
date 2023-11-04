@@ -3,7 +3,7 @@
 use App\Models\Notification;
 
 function push_notification($push_arr){
-    $apiKey = "AAAAZ3ZrAcE:APA91bFonoDQW__pkxUiPynIyh4cVDRNTCEMYM_PLup_5hDV2KC6exmSeVm1GR1FKr9W8XG8-X8usF8I7tI0EX-ukFoCbvYINBMhLnalth0VBS5NLfHn89qX4o4Xpo2YT5h1URU0GHgl";
+    $apiKey = "";
     $registrationIDs 	    = (array) $push_arr['device_token'];    
     $message 			    = array(
         "body"         	    => $push_arr['description'],

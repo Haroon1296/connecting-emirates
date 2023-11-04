@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\GeneralController;
+use App\Http\Controllers\Api\OfferController;
 use App\Http\Controllers\Api\SocialMediaController;
 use Illuminate\Support\Facades\Route;
 
@@ -54,29 +55,13 @@ Route::group(['middleware'=>'auth:sanctum'], function(){
         });
     });
 
-
-    Route::controller(SocialMediaController::class)->group( function(){
-        Route::prefix('event')->group(function () {
-            Route::get('list', 'eventList');
-            Route::get('type-list', 'eventTypeList');
-            Route::get('detail', 'eventDetail');
-            Route::post('create-comment', 'eventCreateComment');
-            Route::post('join', 'eventJoin');
-            Route::post('interested', 'eventInterested');
-
-            Route::prefix('request')->group(function () {
-                // Route::get('my-request', 'myRequest'); // working
-                Route::post('u-request', 'createURequest');
-                Route::post('shout-out-request', 'createShoutOutRequest');
-            });
-
-            Route::group(['middleware'=>'is_hat'], function(){
-                Route::post('create', 'eventCreate');
-                Route::post('update', 'eventUpdate');
-                Route::delete('delete', 'eventDelete');
-
-                Route::post('accept-reject-request', 'acceptRejectEventRequest');
-            });
+    Route::controller(OfferController::class)->group( function(){
+        Route::prefix('offer')->group(function () {
+            Route::get('/', 'index');
+            Route::post('create', 'create');
+            Route::post('update', 'update');
+            Route::delete('delete', 'delete');
         });
     });
+
 });

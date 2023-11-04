@@ -21,12 +21,9 @@ return new class extends Migration
             $table->string('profile_image')->nullable();
             $table->string('phone_number')->nullable();
             $table->string('restaurant_name')->nullable();
-            
-
             $table->string('country_code')->nullable();
             $table->longText('about')->nullable();
             $table->date('date_of_birth')->nullable();
-
             $table->enum('registering_as', ['restaurant', 'adventure', 'event'])->nullable();
             $table->string('operting_emirates')->nullable();
             $table->string('category')->nullable();
@@ -34,30 +31,21 @@ return new class extends Migration
             $table->string('dietary')->nullable();
             $table->string('menu_image')->nullable();
             $table->string('license_image')->nullable();
-            // Business hours []
-            // Venue type []
-
-
-
             $table->enum('gender', ['male', 'female', 'other'])->nullable();
             $table->string('emirates')->nullable();
             $table->string('nationality')->nullable();
-
             $table->string('location')->nullable();
             $table->string('latitude')->nullable();
             $table->string('longitude')->nullable();
-
-
             $table->string('customer_id')->nullable();
-
             $table->rememberToken()->nullable();
-
             $table->enum('is_profile_complete', ['0','1'])->default('0');
             $table->enum('device_type', ['ios','android','web'])->nullable();
             $table->longText('device_token')->nullable();
             $table->enum('social_type', ['google','facebook','twitter','instagram','apple','phone'])->nullable();
             $table->longText('social_token')->nullable();
             $table->enum('push_notification', ['0','1'])->default('1');
+            $table->enum('is_admin_verified', ['0','1'])->default('1');
             $table->enum('is_verified', ['0','1'])->default('0');
             $table->enum('is_forgot', ['0','1'])->default('0');
             $table->enum('is_social', ['0','1'])->default('0');

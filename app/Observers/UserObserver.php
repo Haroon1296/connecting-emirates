@@ -11,6 +11,7 @@ class UserObserver
     {
         $user->password = Hash::make($user->password);
         $user->verified_code = 123456; // mt_rand(10000,90000);
+        $user->is_admin_verified = $user->user_type == 'customer' ? '1' : '0';
     }
 
     /**

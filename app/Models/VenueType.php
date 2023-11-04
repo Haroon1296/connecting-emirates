@@ -17,4 +17,9 @@ class VenueType extends Model
     {
         return $query->where('status', 1);
     }
+
+    public function businesses()
+    {
+        return $this->belongsToMany(Business::class, 'business_venue_types_table', 'venue_type_id', 'business_id');
+    }
 }

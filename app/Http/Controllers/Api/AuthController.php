@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Traits\ApiResponser;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Models\BusinessVenueType;
 use App\Models\User;
 use App\Notifications\Otp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Notification;
@@ -273,46 +275,60 @@ class AuthController extends Controller
             'registering_as'            =>    'in:restaurant,adventure,event',
             'menu_image'                =>    'mimes:jpeg,png,jpg',
             'license_image'             =>    'mimes:jpeg,png,jpg',
-            'venue_type_id'             =>    'mimes:jpeg,png,jpg'
+            'venue_type_id'             =>    'array'
         ]);
-
-        $authUser = auth()->user();
-        $authId = $authUser->id;
-        $completeProfile = $request->all();
-
-        if($request->hasFile('profile_image')){
-            $profile_image = $request->profile_image->store('public/profile_image');
-            $path_profile_image = Storage::url($profile_image);
-            $completeProfile['profile_image'] = $path_profile_image;
-        }
-
-        if($request->hasFile('menu_image')){
-            $menu_image = $request->menu_image->store('public/business');
-            $path_menu_image = Storage::url($menu_image);
-            $completeProfile['menu_image'] = $path_menu_image;
-        }
-
-        if($request->hasFile('license_image')){
-            $license_image = $request->license_image->store('public/business');
-            $path_license_image = Storage::url($license_image);
-            $completeProfile['license_image'] = $path_license_image;
-        }
-
-        $completeProfile['is_profile_complete'] = '1';
-        $update_user = User::whereId($authId)->update($completeProfile);
         
-        if($update_user){
-            $user = User::find($authId);
+        try{ 
+            DB::beginTransaction();
 
+            $authUser = auth()->user();
+            $authId = $authUser->id;
+            $completeProfile = $request->except(['venue_type_id']);
+
+            if($request->hasFile('profile_image')){
+                $profile_image = $request->profile_image->store('public/profile_image');
+                $path_profile_image = Storage::url($profile_image);
+                $completeProfile['profile_image'] = $path_profile_image;
+            }
+
+            if($request->hasFile('menu_image')){
+                $menu_image = $request->menu_image->store('public/business');
+                $path_menu_image = Storage::url($menu_image);
+                $completeProfile['menu_image'] = $path_menu_image;
+            }
+
+            if($request->hasFile('license_image')){
+                $license_image = $request->license_image->store('public/business');
+                $path_license_image = Storage::url($license_image);
+                $completeProfile['license_image'] = $path_license_image;
+            }
+
+            if(isset($request->venue_type_id) && count($request->venue_type_id) > 0){
+                foreach($request->venue_type_id as $venue_type_id){
+                    BusinessVenueType::create([
+                        'business_id'     =>  $authId,
+                        'venue_type_id'   =>  $venue_type_id
+                    ]);
+                }
+            }
+
+            $completeProfile['is_profile_complete'] = '1';
+            $update_user = User::whereId($authId)->update($completeProfile);
+            
+            $user = User::find($authId);
             $userResource = new UserResource($user);
             
             if($authUser->is_profile_complete == '0'){
-                return $this->successDataResponse('Profile completed successfully.', $userResource);
+                $message = 'Profile completed successfully.';
             } else{
-                return $this->successDataResponse('Profile updated successfully.', $userResource);
+                $message = 'Profile updated successfully.';
             }
-        }else{
-            return $this->errorResponse('Something went wrong.', 400);
+
+            DB::commit(); 
+            return $this->successDataResponse($message, $userResource);
+        } catch (\Exception $exception){
+            DB::rollBack();
+            return $this->errorResponse($exception->getMessage(), 400);
         }
     }
 
@@ -324,18 +340,6 @@ class AuthController extends Controller
         ]);
 
         return $this->successDataResponse('Content found.', ['url' => url('content', $request->type)], 200);
-    }
-
-    /** Faq */
-    public function faq()
-    {
-        $faqs = Faq::latest()->select('question', 'answer')->get();
-
-        if(count($faqs) > 0){
-            return $this->successDataResponse('Faq found.', $faqs, 200);
-        } else{
-            return $this->errorResponse('Faq not found.', 400);
-        }
     }
 
     /** Logout */

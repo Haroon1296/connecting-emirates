@@ -65,9 +65,9 @@ class User extends Authenticatable
     {
         return $query->where('is_verified', '1');
     }
-
-    public function social_media_links()
+    
+    public function venue_type()
     {
-        return $this->hasMany(SocialMediaLink::class, 'user_id')->select('id', 'title', 'link');
+        return $this->belongsToMany(VenueType::class, 'business_venue_types', 'business_id', 'venue_type_id');
     }
 }

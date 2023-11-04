@@ -75,9 +75,11 @@ class UserResource extends JsonResource
             'push_notification'     =>  $data->push_notification,
             'is_profile_complete'   =>  $data->is_profile_complete,
             'is_verified'           =>  $data->is_verified,
+            'is_admin_verified'     =>  $data->is_admin_verified,
             'is_blocked'            =>  $data->is_blocked,
             'is_social'             =>  $data->is_social,
-            'is_deleted'            =>  $data->is_deleted
+            'is_deleted'            =>  $data->is_deleted,
+            'venue_type'            =>  $data->venue_type
         ];
     }
 }
