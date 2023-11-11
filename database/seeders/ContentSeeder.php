@@ -24,5 +24,10 @@ class ContentSeeder extends Seeder
             'content' => '<p>This is dummy terms and conditions.</p>',
             'type'    => 'tc'
         ]);
+
+        Content::create([
+            'content' => '<p>This is dummy about app.</p>',
+            'type'    => 'aa'
+        ]);
     }
 }

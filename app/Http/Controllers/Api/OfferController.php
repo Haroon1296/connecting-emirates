@@ -124,6 +124,28 @@ class OfferController extends Controller
     /** Delete offer */
     public function delete(Request $request)
     {
-        
+        $this->validate($request, [
+            'offer_id'                     =>      'required|exists:offers,id',         
+        ]); 
+
+        try{
+            DB::beginTransaction();
+
+            Offer::whereId($request->offer_id)->delete();
+            $attachment_ids = Attachment::where(['record_id' => $request->offer_id, 'type' => 'offer'])->pluck('id');
+
+            if(count($attachment_ids) > 0){
+                $deleteAttachment = GeneralController::deleteAttachment($attachment_ids);
+                if($deleteAttachment != 1){
+                    return $this->errorResponse($deleteAttachment, 400);
+                }
+            }
+
+            DB::commit();
+            return $this->successResponse('Offer has been deleted successfully.');
+        } catch (\Exception $exception){
+            DB::rollBack();
+            return $this->errorResponse($exception->getMessage(), 400);
+        }
     }
 }

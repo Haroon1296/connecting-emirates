@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('contents', function (Blueprint $table) {
             $table->id();
             $table->text('content');
-            $table->enum('type', ['pp','tc']);
+            $table->enum('type', ['pp','tc', 'aa']);
             $table->timestamps();
         });
     }
